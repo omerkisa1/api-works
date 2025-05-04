@@ -1,6 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from enum import Enum
 from typing import Optional
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -22,7 +23,7 @@ async def put():
 # ------------------------------------------
 
 # Returns all users
-@app.get("/users")
+@app.get("/users_all")
 async def get_all_users():
     return {"message": "all users listed"}
 
@@ -96,3 +97,62 @@ async def get_user_item(
     return item
 
 # ---------------------------
+
+
+# Pydantic model for user data
+class User(BaseModel):
+    username: str
+    password : str
+    type: AccessType  # User type must be one of: admin, user, superadmin
+    salary: int
+    tax: float
+
+# Create a new user using POST method
+@app.post("/users")
+async def create_user(user: User):
+    user_dict = user.model_dump()  # Convert Pydantic model to dictionary
+    if user.tax:
+        salary_with_tax = user.salary + user.tax  # Calculate salary including tax
+        user_dict.update({"salary_with_tax": salary_with_tax})  # Add to response
+    return user_dict  # Return full user data as response
+
+# Update user using PUT method and support optional query string
+@app.put("/users/{user_id}")
+async def create_user_with_put_method(user_id: int, user: User, optional_query: Optional[str] = None):
+    result = {"user_id": user_id, **user.model_dump()}  # Merge user_id with user data
+
+    if optional_query:
+        result.update({"optional_query": optional_query})  # Include optional query in result
+    
+    return result  # Return combined result
+
+# ---------------------------
+
+# Read all users with optional query string for filtering or testing
+@app.get("/users")
+async def read_users(
+    optional_query : Optional[str] = Query(
+        None,
+        min_length=2,  # Minimum 2 characters required
+        max_length=10,  # Maximum 10 characters allowed
+        title="Example for query",  # Title shown in Swagger docs
+        description="This is a example for query string",  # Description for documentation
+        alias="user_query",  # Query parameter expected as "user_query" in URL
+    )
+):
+    results = {"users": ["Alice", "Bob"]}  # Simulated user list
+    if optional_query:
+        results.update({"optional_query": optional_query})  # Include query in response if provided
+    return results  # Return user list (and query if given)
+
+# Hidden query parameter example — not shown in Swagger documentation
+@app.get("/users_hidden")
+async def hidden_user_query(
+    hidden_query: Optional[str] = Query(
+        None,
+        include_in_schema=False  # Hide from API documentation (Swagger UI)
+    )
+):
+    if hidden_query:
+        return({"hidden_query": hidden_query})  # Return the hidden query value if provided
+    return({"hidden_query": "not found"})  # Default fallback response
