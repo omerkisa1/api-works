@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Path
 from enum import Enum
 from typing import Optional
 from pydantic import BaseModel
@@ -156,3 +156,16 @@ async def hidden_user_query(
     if hidden_query:
         return({"hidden_query": hidden_query})  # Return the hidden query value if provided
     return({"hidden_query": "not found"})  # Default fallback response
+
+#---------------------------------------
+@app.get("/users_validation/{user_id}")
+async def read_users_validation(
+    *,
+    user_id: int = Path(...,title= "ID of the user", gt=0, le=10),
+    q:str = "hi",
+    size:float = Query(..., gt=0, lt = 7.75) 
+):
+    results = {"user_id:":user_id, "size:":size}
+    if q:
+        results.update({"q: ":q})
+    return results
